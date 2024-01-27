@@ -1,0 +1,14 @@
+{
+  "name": "youtube",
+  "version": "1.0.0",
+  "description": "youtube backend",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodemon index.js"
+  },
+  "author": "Vishal Khetavat",
+  "license": "ISC",
+  "dependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
