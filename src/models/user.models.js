@@ -41,12 +41,12 @@ const userSchema = new mongoose.Schema({
         required: [true,"Password is required"]
     },
     refreshToken: {
-        type: string
+        type: String
     }
 },{timestamps: true})
 
 userSchema.pre("save", async function (next){
-    if (userSchema.isModified("password")){
+    if (this.isModified("password")){
         this.password = await bcrypt.hash(this.password,10);
     }
     next();
@@ -71,6 +71,6 @@ userSchema.methods.generateRefreshToken = function (){
         _id: this._id
     }
 
-    return jwt.sign(data,process.env.REFRESH_TOKEN_SECRET,{expiresIn: REFRESH_TOKEN_EXPIRY=10d})
+    return jwt.sign(data,process.env.REFRESH_TOKEN_SECRET,{expiresIn: REFRESH_TOKEN_EXPIRY})
 }
 export const User = mongoose.model("User",userSchema);
