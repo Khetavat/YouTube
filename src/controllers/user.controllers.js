@@ -232,4 +232,90 @@ const regenerateAccessToken = async function(req,res){
     }
 
 }
-export {registerUser,loginUser,logoutUser,regenerateAccessToken};
+
+const changeCurrentPassword = async function(req,res){
+
+    const {oldPassword,newPassword} = req.body;
+
+    const user = await User.findById(req.user?._id);
+
+    const isPasswordCorrect = await user.isPasswordCorrrect(oldPassword);
+    if (!isPasswordCorrect){
+        throw new ApiError(401,"Invalide oldPassword");
+    }
+
+    user.password = newPassword;
+
+    await user.save({validateBeforeSave: false});
+
+    return res.json(
+        new ApiResponse(200,{},"Password changed successfully")
+    )
+    
+}
+
+const getCurrentUser = async function(req,res){
+
+    return res.json(
+        new ApiResponse(200,req.user,"current user fetched successfully")
+    )
+}
+
+const updateAvatar = async function(req,res){
+    // we used req.file not req.files bcz we used middleware with only one file specified
+    const localAvatarPath = req.file?.path;
+
+    if (!localAvatarPath){
+        throw new ApiError(400,"Avatar file is missing");
+    }
+
+    const avatar = await uploadOnCloud(localAvatarPath);
+
+    if (!avatar.url){
+        throw new ApiError(500,"Error while uploading avatar");
+    }
+
+    //update the url in database
+    const user = await User.findByIdAndUpdate(req.user?._id,{
+        $set: {
+            avatar: avatar.path
+        }
+    },{
+        new: true
+    })
+
+    return res.json(
+        new ApiResponse(200,user,"avatar updated successfully")
+    )
+}
+
+const updateCoverImage = async function(req,res){
+    // we used req.file not req.files bcz we used middleware with only one file specified
+    const localCoverImagePath = req.file?.path;
+
+    if (!localCoverImagePath){
+        throw new ApiError(400,"Cover Image file is missing");
+    }
+
+    const CoverImage = await uploadOnCloud(localCoverImagePath);
+
+    if (!avatar.url){
+        throw new ApiError(500,"Error while uploading Cover Image");
+    }
+
+    //update the url in database
+    const user = await User.findByIdAndUpdate(req.user?._id,{
+        $set: {
+            converImage: CoverImage.path
+        }
+    },{
+        new: true
+    })
+
+    return res.json(
+        new ApiResponse(200,user,"Cover Image updated successfully")
+    )
+}
+
+export {registerUser,loginUser,logoutUser,regenerateAccessToken,
+    changeCurrentPassword,getCurrentUser,updateAvatar,updateCoverImage};
