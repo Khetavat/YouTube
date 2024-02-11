@@ -3,6 +3,7 @@ import { User } from "../models/user.models.js";
 import {uploadOnCloud} from "../Utilities/fileUpload.js"
 import {ApiResponse} from "../Utilities/apiResponse.js"
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 // give the Access and Refresh token
 async function generateAccessAndRefreshToken(userId){
     try {
@@ -317,5 +318,129 @@ const updateCoverImage = async function(req,res){
     )
 }
 
+const getUserChannelProfile = async function(req,res){
+
+    const {username} = req.params;
+
+    if (!username?.trim){
+        throw new ApiError(400,"Invalide username");
+    }
+
+    const channel = await User.aggregate([
+        {
+            $match: {
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                SubscribersCount: {
+                    $size: "$subscribers"
+                },
+                channelSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {$in: [req.user?._id,"$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {
+                fullname: 1,
+                username: 1,
+                SubscribersCount: 1,
+                channelSubscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+            }
+        }
+    ]);
+
+    console.log(channel);
+
+    if (!channel?.length){
+        throw new ApiError(404,"channel does not exist");
+    }
+
+    return res.json(
+        new ApiResponse(200,channel,"User channel fetched successfully")
+    )
+}
+
+const getWatchHistory = async function(req,res){
+
+    // note 
+    // req.user_id gives the id in string not objectId("")
+    // when we pass above in queries then mongoose internally
+    // convert in into objectId("id")
+
+    // But in aggreate mongoose dosen't work , bcz it directly 
+    // execute on mongoDB
+    // so convert the "id" into ObjectId("id")
+
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user.__id)
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                // subpipeline for videos owner details
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner"
+                        }
+                    },
+                    {
+                        $project: {
+                            fullname: 1,
+                            username: 1,
+                            avatar: 1
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res.json(
+        new ApiResponse(200,user,"Watch History fetched successfully")
+    )
+}
+
 export {registerUser,loginUser,logoutUser,regenerateAccessToken,
-    changeCurrentPassword,getCurrentUser,updateAvatar,updateCoverImage};
+    changeCurrentPassword,getCurrentUser,updateAvatar,updateCoverImage,
+    getUserChannelProfile,getWatchHistory};
